@@ -1,24 +1,17 @@
-/** biome-ignore-all assist/source/organizeImports: not relevant */
-import Elysia, { status, t } from "elysia";
-import { db } from "./db";
-import { users } from "./schema";
-import { hashPassword, verifyPassword } from "./utils";
 import { eq } from "drizzle-orm";
-import jwt from "@elysiajs/jwt";
+import Elysia, { status, t } from "elysia";
+import { db } from "./db/db";
+import { users } from "./db/schema";
+import { jwtPlugin } from "./plugins/jwtPlugin";
+import { hashPassword, verifyPassword } from "./utils";
 
 const authSchema = t.Object({
 	username: t.String({ error: "Username is required" }),
 	password: t.String({ error: "Password is required" }),
 });
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-	throw new Error("JWT SECRET is required");
-}
-
 export const auth = new Elysia({ prefix: "/auth" })
-	.use(jwt({ name: "jwt", secret: JWT_SECRET }))
+	.use(jwtPlugin)
 	.post(
 		"/signup",
 		async ({ body }) => {
@@ -66,6 +59,7 @@ export const auth = new Elysia({ prefix: "/auth" })
 				maxAge: 60 * 60,
 				httpOnly: true,
 				sameSite: "none",
+				secure: true,
 				path: "/",
 			});
 
