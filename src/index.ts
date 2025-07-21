@@ -1,3 +1,4 @@
+import { cors } from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
 import { Elysia, status } from "elysia";
 import { auth } from "./auth";
@@ -9,6 +10,7 @@ export const app = new Elysia()
 			return status(code, error.response);
 		}
 	})
+	.use(cors({ origin: "https://todo-frontend-17q.pages.dev" }))
 	.use(
 		swagger({
 			path: "/docs",
