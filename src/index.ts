@@ -6,7 +6,7 @@ import { todo } from "./todo";
 export const app = new Elysia()
 	.onError(({ code, error }) => {
 		if (typeof code === "number") {
-			return status(code, { suucess: false, message: error.response });
+			return status(code, error.response);
 		}
 	})
 	.use(

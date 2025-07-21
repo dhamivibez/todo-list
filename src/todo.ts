@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import Elysia, { status, t } from "elysia";
 import { db } from "./db/db";
-import { todos, users } from "./db/schema";
+import { todos } from "./db/schema";
 import { authPlugin } from "./plugins/authPlugin";
 
 interface UpdateTodoBody {
@@ -47,14 +47,6 @@ export const todo = new Elysia()
 			}
 
 			const { name, description } = body;
-
-			const user = await db.query.users.findFirst({
-				where: eq(users.id, userId),
-			});
-
-			if (!user) {
-				throw status(404, "No user found");
-			}
 
 			await db.insert(todos).values({ name, userId, description });
 
@@ -114,32 +106,31 @@ export const todo = new Elysia()
 	)
 	.patch(
 		"/todos/:id",
-		async ({ userId, params: { id }, body }) => {
+		async ({ userId, params: { id }, body, status }) => {
 			if (!userId) {
-				throw status(400, "User not logged in");
+				throw status(400, { success: false, message: "User not logged in" });
 			}
 
-			// Destructure body once and use the destructured values
 			const { name, description, status: todoStatus } = body;
 
 			const todo = await db.query.todos.findFirst({
 				where: eq(todos.id, id),
-				// Only fetch columns necessary for authorization and validation checks
-				columns: { userId: true, status: true },
+				columns: { userId: true },
 			});
 
 			if (!todo) {
-				throw status(404, "Todo not found");
+				throw status(404, { success: false, message: "Todo not found" });
 			}
 
 			if (todo.userId !== userId) {
-				throw status(403, "You can't edit this todo");
+				throw status(403, {
+					success: false,
+					message: "You can't edit this todo",
+				});
 			}
 
-			// Prepare update payload
 			const updatePayload: UpdateTodoBody = {};
 
-			// Only add to payload if they are provided in the body and are not empty strings
 			if (name !== undefined && name !== "") {
 				updatePayload.name = name;
 			}
@@ -148,24 +139,18 @@ export const todo = new Elysia()
 				updatePayload.description = description;
 			}
 
-			// Validate todoStatus against the allowed enum values
 			if (todoStatus !== undefined) {
-				const allowedStatuses = ["active", "inactive"]; // Ensure this matches your enum definition
-				if (!allowedStatuses.includes(todoStatus)) {
-					throw status(422, "Invalid Status value");
-				}
 				updatePayload.status = todoStatus;
 			}
 
-			// If no fields are provided for update, return a specific message or throw an error
 			if (Object.keys(updatePayload).length === 0) {
-				throw status(422, "No valid fields provided for update.");
+				throw status(422, {
+					success: false,
+					message: "No valid fields provided for update.",
+				});
 			}
 
-			await db
-				.update(todos)
-				.set(updatePayload) // Use the constructed updatePayload
-				.where(eq(todos.id, id));
+			await db.update(todos).set(updatePayload).where(eq(todos.id, id));
 
 			return {
 				success: true,
@@ -179,6 +164,15 @@ export const todo = new Elysia()
 				status: t.Optional(t.Enum({ active: "active", inactive: "inactive" })),
 			}),
 			authenticated: true,
+
+			response: {
+				200: responseMessage,
+				400: responseMessage,
+				403: responseMessage,
+				404: responseMessage,
+				422: responseMessage,
+				500: responseMessage,
+			},
 		},
 	)
 	.delete(

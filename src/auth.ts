@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import Elysia, { status, t } from "elysia";
 import { db } from "./db/db";
 import { users } from "./db/schema";
+import { authPlugin } from "./plugins/authPlugin";
 import { jwtPlugin } from "./plugins/jwtPlugin";
 import { hashPassword, verifyPassword } from "./utils";
 
@@ -12,6 +13,7 @@ const authSchema = t.Object({
 
 export const auth = new Elysia({ prefix: "/auth" })
 	.use(jwtPlugin)
+	.use(authPlugin)
 	.post(
 		"/signup",
 		async ({ body }) => {
@@ -66,4 +68,19 @@ export const auth = new Elysia({ prefix: "/auth" })
 			return { success: true };
 		},
 		{ body: authSchema },
+	)
+	.post(
+		"/logout",
+		({ cookie: { auth_token } }) => {
+			auth_token.set({
+				value: "",
+				maxAge: 0,
+				path: "/",
+				httpOnly: true,
+				sameSite: "none",
+			});
+
+			return { success: true };
+		},
+		{ authenticated: true },
 	);
